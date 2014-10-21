@@ -62,7 +62,7 @@ module Capistrano
         desc 'prepare git tree so we can tag on successful deployment'
         namespace :git do
           task :prepare_tree, :except => { :no_release => true } do
-            next if fetch(:no_deploytags, false)
+            next if fetch(:no_deploytags, false) || dry_run
 
             cdt.validate_git_vars
 
@@ -80,13 +80,14 @@ module Capistrano
 
           desc 'add git tags for each successful deployment'
           task :tagdeploy, :except => { :no_release => true } do
-            next if fetch(:no_deploytags, false)
-
+            if fetch(:no_deploytags, false) || dry_run
+              logger.log Capistrano::Logger::INFO, "Skipping tagging #{current_sha} for deployment"
+              next
+            end
             cdt.validate_git_vars
 
             current_sha = `git rev-parse #{branch} HEAD`.strip[0..8]
             logger.log Capistrano::Logger::INFO, "Tagging #{current_sha} for deployment"
-
             cdt.safe_run 'git', 'tag', '-a', cdt.git_tag_for(stage), '-m', cdt.commit_message(current_sha)
             cdt.safe_run 'git', 'push', '--tags' if cdt.has_remote?
           end
